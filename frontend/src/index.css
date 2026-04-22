@@ -1,0 +1,79 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900;
+  }
+}
+
+@layer components {
+  .crm-gradient-bg {
+    @apply bg-blue-600;
+  }
+
+  .crm-gradient-bg-hover {
+    @apply hover:bg-blue-700;
+  }
+
+  .crm-gradient-soft {
+    @apply bg-blue-100 text-blue-700;
+  }
+
+  .crm-avatar-soft {
+    @apply bg-blue-100 text-blue-700;
+  }
+
+  .crm-focus-ring {
+    @apply focus:ring-2 focus:ring-blue-500/30;
+  }
+
+  .crm-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md;
+  }
+
+  .crm-primary-btn {
+    @apply rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700;
+  }
+
+  .crm-tab-btn {
+    @apply rounded-full px-4 py-2 text-sm font-medium transition duration-200 ease-in-out;
+  }
+
+  .crm-input {
+    @apply h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition duration-200 ease-in-out focus:ring-2 focus:ring-blue-500/30;
+  }
+
+}
+
+.tab-container {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  align-items: center;
+}
+
+.tab {
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  border: 1px solid transparent;
+  color: #475569;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  background: #e2e8f0;
+}
+
+.tab.active {
+  background: #2563eb;
+  color: white;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}

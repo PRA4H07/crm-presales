@@ -1,0 +1,31 @@
+# Node modules
+node_modules/
+*/node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Environment files
+.env
+.env.*
+
+# Build folders
+dist/
+build/
+.next/
+
+# OS files
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+
+# Backend specific
+uploads/
+tmp/
+
+# Frontend specific
+coverage/
