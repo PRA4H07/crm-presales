@@ -203,7 +203,7 @@ function CommunicationPage() {
                 key={item.id}
                 type="button"
                 onClick={() => setFilter(item.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
                   filter === item.id
                     ? 'crm-gradient-soft'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -224,7 +224,7 @@ function CommunicationPage() {
                 onClick={() => setActiveConversationId(conversation.id)}
                 className={`block w-full rounded-xl border px-3 py-3 text-left transition ${
                   conversation.id === activeConversationId
-                    ? 'border-violet-200 crm-gradient-soft shadow-sm'
+                    ? 'border-blue-200 bg-blue-50/80 shadow-sm'
                     : 'border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -234,7 +234,7 @@ function CommunicationPage() {
                       {conversation.contactName}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-slate-500">
-                      {conversation.subject}
+                      {conversation.preview || conversation.subject}
                     </p>
                   </div>
                   <span className="shrink-0 text-[10px] font-medium text-slate-400">
@@ -247,7 +247,7 @@ function CommunicationPage() {
           </div>
         </aside>
 
-        <div className="grid gap-4 2xl:grid-cols-[1fr_320px]">
+        <div className="space-y-4">
           <article className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <header className="border-b border-slate-200 px-4 py-3 md:px-5 md:py-4">
               <div className="flex flex-col gap-1">

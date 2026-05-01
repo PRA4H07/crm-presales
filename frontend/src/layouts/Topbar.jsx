@@ -89,68 +89,70 @@ function Topbar({ onToggleSidebar }) {
             <Settings size={18} />
           </Link>
         ) : null}
-        <div className="relative" ref={notificationsRef}>
-          <button
-            className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
-            type="button"
-            aria-label="notifications"
-            onClick={handleBellClick}
-          >
-            <Bell size={18} />
-            {unreadCount > 0 ? (
-              <span className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold text-white">
-                {unreadCount}
-              </span>
+        {!isSystemAdmin ? (
+          <div className="relative" ref={notificationsRef}>
+            <button
+              className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+              type="button"
+              aria-label="notifications"
+              onClick={handleBellClick}
+            >
+              <Bell size={18} />
+              {unreadCount > 0 ? (
+                <span className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold text-white">
+                  {unreadCount}
+                </span>
+              ) : null}
+            </button>
+
+            {openNotificationsDropdown ? (
+              <div className="absolute right-0 z-40 mt-2 w-[340px] origin-top-right rounded-2xl border border-slate-200 bg-white shadow-lg transition duration-150 ease-out animate-in fade-in zoom-in-95">
+                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                  <p className="text-sm font-semibold text-slate-900">Notifications</p>
+                  <button
+                    type="button"
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => {
+                      setOpenNotificationsDropdown(false)
+                      navigate('/notifications')
+                    }}
+                  >
+                    View All
+                  </button>
+                </div>
+
+                <div className="max-h-80 overflow-y-auto">
+                  {!previewNotifications.length ? (
+                    <div className="px-4 py-8 text-center text-sm text-slate-500">
+                      No notifications
+                    </div>
+                  ) : (
+                    previewNotifications.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={async () => {
+                          await markNotificationRead(item.id)
+                          setOpenNotificationsDropdown(false)
+                          navigate('/notifications')
+                        }}
+                        className={`block w-full border-b border-slate-100 px-4 py-3 text-left transition last:border-0 hover:bg-slate-50 ${
+                          !item.isRead ? 'bg-blue-50/60' : 'bg-white'
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                        <p className="mt-0.5 text-xs text-slate-600">{item.description}</p>
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          {formatDateTime(item.createdAt)}
+                        </p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
             ) : null}
-          </button>
-
-          {openNotificationsDropdown ? (
-            <div className="absolute right-0 z-40 mt-2 w-[340px] origin-top-right rounded-2xl border border-slate-200 bg-white shadow-lg transition duration-150 ease-out animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <p className="text-sm font-semibold text-slate-900">Notifications</p>
-                <button
-                  type="button"
-                  className="text-xs text-blue-600 hover:text-blue-700"
-                  onClick={() => {
-                    setOpenNotificationsDropdown(false)
-                    navigate('/notifications')
-                  }}
-                >
-                  View All
-                </button>
-              </div>
-
-              <div className="max-h-80 overflow-y-auto">
-                {!previewNotifications.length ? (
-                  <div className="px-4 py-8 text-center text-sm text-slate-500">
-                    No notifications
-                  </div>
-                ) : (
-                  previewNotifications.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={async () => {
-                        await markNotificationRead(item.id)
-                        setOpenNotificationsDropdown(false)
-                        navigate('/notifications')
-                      }}
-                      className={`block w-full border-b border-slate-100 px-4 py-3 text-left transition last:border-0 hover:bg-slate-50 ${
-                        !item.isRead ? 'bg-blue-50/60' : 'bg-white'
-                      }`}
-                    >
-                      <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                      <p className="mt-0.5 text-xs text-slate-600">{item.description}</p>
-                      <p className="mt-1 text-[11px] text-slate-400">
-                        {formatDateTime(item.createdAt)}
-                      </p>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         <div className="relative" ref={profileRef}>
           <button
             type="button"

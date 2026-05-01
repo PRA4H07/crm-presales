@@ -6,6 +6,7 @@ import leadRoutes from "./routes/leadRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import agencyRoutes from "./routes/agencyRoutes.js";
 import insightsRoutes from "./routes/insightsRoutes.js";
+import organisationRoutes from "./routes/organisationRoutes.js";
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use("/api/leads", leadRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/agency", agencyRoutes);
 app.use("/api/insights", insightsRoutes);
+app.use("/api/organisations", organisationRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");

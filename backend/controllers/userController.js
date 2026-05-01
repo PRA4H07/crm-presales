@@ -4,7 +4,7 @@ import { sendEmail } from "../utils/email.js";
 
 export const createUser = async (req, res) => {
   try {
-    const { name, email, role, designation, organisation, status } = req.body;
+    const { name, email, role, designation, organisationId, status, orgRole } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -20,8 +20,9 @@ export const createUser = async (req, res) => {
       email,
       password: hashedPassword,
       role,
+      orgRole: orgRole || "READ_ONLY",
       designation,
-      organisation,
+      organisationId,
       status: status || "Active",
       mustChangePassword: true,
       createdBy: req.user._id,
@@ -42,15 +43,16 @@ export const createUser = async (req, res) => {
 
 export const getUsers = async (req, res) => {
   try {
-    const { role } = req.query;
+    const { role, organisationId } = req.query;
 
-    let filter = {};
+let filter = {};
 
-    if (role) {
-      filter.role = role;
-    }
+if (role) filter.role = role;
+if (organisationId) filter.organisationId = organisationId;
 
-    const users = await User.find(filter).select("-password");
+    const users = await User.find(filter)
+  .populate("organisationId", "name email")
+  .select("-password");
 
     res.json(users);
   } catch (error) {
@@ -76,7 +78,7 @@ export const deleteUser = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
-    const { name, email, role, designation, status } = req.body;
+    const { name, email, role, designation, status, orgRole } = req.body;
 
     const user = await User.findById(req.params.id);
 
@@ -89,6 +91,7 @@ export const updateUser = async (req, res) => {
     if (role) user.role = role;
     if (designation) user.designation = designation;
     if (status !== undefined) user.status = status;
+    if (orgRole) user.orgRole = orgRole;
 
     await user.save();
 

@@ -24,6 +24,12 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    orgRole: {
+      type: String,
+      enum: ["ADMIN", "MANAGE", "READ_ONLY"],
+      default: "READ_ONLY",
+    },
+
     designation: {
       type: String,
       default: "",
@@ -32,6 +38,12 @@ const userSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+
+    organisationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organisation",
+      required: true,
     },
 
     mustChangePassword: {

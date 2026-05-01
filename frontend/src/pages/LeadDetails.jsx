@@ -9,7 +9,6 @@ const steps = [
   "Proposal",
   "Negotiation",
   "Booked",
-  "Lost",
 ];
 
 function LeadDetails() {
@@ -19,16 +18,8 @@ function LeadDetails() {
   const [lead, setLead] = useState(null);
   const [priorityScore] = useState(() => Math.floor(Math.random() * 41) + 60);
 
-  const handleStatusChange = async (newStatus) => {
-    try {
-      const res = await axiosInstance.put(`/leads/${id}/status`, {
-        status: newStatus,
-      });
-
-      setLead(res.data);
-    } catch (err) {
-      alert("Failed to update status");
-    }
+  const handleStatusChange = (newStatus) => {
+    setLead((prev) => (prev ? { ...prev, status: newStatus } : prev));
   };
 
   useEffect(() => {
