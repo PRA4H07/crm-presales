@@ -26,6 +26,21 @@ const organisationSchema = new mongoose.Schema(
       default: 10,
     },
 
+    code: {
+      type: String,
+      unique: true,
+    },
+
+    city: {
+      type: String,
+      default: "",
+    },
+
+    address: {
+      type: String,
+      default: "",
+    },
+
     status: {
       type: Boolean,
       default: true,
@@ -52,7 +67,7 @@ const organisationSchema = new mongoose.Schema(
       ref: "User",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model("Organisation", organisationSchema);

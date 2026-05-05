@@ -41,6 +41,7 @@ function SystemAdminSettings() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("All Roles");
   const [saveMessage, setSaveMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreatingOrganisation, setIsCreatingOrganisation] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -175,10 +176,14 @@ function SystemAdminSettings() {
       setIsCreatingOrganisation(true);
 
       await axiosInstance.post("/organisations", payload);
+      const usersRes = await axiosInstance.get("/users");
+      setUsers(usersRes.data);
 
       const res = await axiosInstance.get("/organisations");
       setOrganisations(res.data);
       window.dispatchEvent(new Event("refreshOrganisations"));
+      setSuccessMessage("Organisation created successfully");
+      setTimeout(() => setSuccessMessage(""), 3000);
       closeUserModal();
     } catch (error) {
       console.error("Failed to create organisation:", error);
@@ -213,6 +218,8 @@ function SystemAdminSettings() {
             : item,
         ),
       );
+      setSuccessMessage("User updated successfully");
+      setTimeout(() => setSuccessMessage(""), 3000);
       closeEditModal();
     } catch (error) {
       console.error("Failed to update user:", error);
@@ -229,6 +236,12 @@ function SystemAdminSettings() {
           Manage your workspace configuration and user permissions
         </p>
       </div>
+
+      {successMessage && (
+        <div className="mb-4 rounded-lg bg-green-100 text-green-700 px-4 py-2 text-sm font-medium">
+          {successMessage}
+        </div>
+      )}
 
       <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
         <button

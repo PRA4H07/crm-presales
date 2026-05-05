@@ -45,7 +45,7 @@ function getStoredOrganisation() {
 function getRoleLabel(role) {
   const normalized = String(role || "").toLowerCase();
   if (normalized === "admin" || normalized === "system_admin") return "Admin";
-  if (normalized === "manager") return "Manager";
+  if (normalized === "manager" || normalized === "manage") return "Manager";
   if (normalized === "read_only" || normalized === "employee")
     return "System Users Read-Only";
   return "System Users Read-Only";
@@ -53,7 +53,7 @@ function getRoleLabel(role) {
 
 function toApiRole(roleLabel) {
   if (roleLabel === "Admin") return "ADMIN";
-  if (roleLabel === "Manager") return "MANAGER";
+  if (roleLabel === "Manager") return "MANAGE";
   return "READ_ONLY";
 }
 
@@ -80,7 +80,8 @@ function normalizeOrganisation(org, index) {
     _id: String(org?._id || org?.id || index + 1),
     organizationName:
       org?.organizationName || org?.name || `Agency ${index + 1}`,
-    organizationCode: org?.organizationCode || org?.code || "N/A",
+    code: org?.code || org?.organizationCode || "N/A",
+    organizationCode: org?.code || "N/A",
     organizationAddress: org?.organizationAddress || org?.address || "N/A",
     maximumUsers: Number(org?.maximumUsers ?? org?.maxUsers ?? 0),
     plan: org?.plan || "Trial",
@@ -113,7 +114,7 @@ function applyOrganisationState(
     setSelectedPlan(normalized[0].plan || "Trial");
     setSettingsForm({
       organizationName: normalized[0].organizationName || "",
-      organizationCode: normalized[0].organizationCode || "",
+      organizationCode: normalized[0].code || "N/A",
       city: normalized[0].city || "",
       maximumUsers: normalized[0].maximumUsers || "",
       organizationAddress: normalized[0].organizationAddress || "",
@@ -136,6 +137,7 @@ function Organisations() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("Trial");
   const [backendConfigs, setBackendConfigs] = useState(() => {
     try {
@@ -181,7 +183,9 @@ function Organisations() {
       const records = Array.isArray(agencyPayload)
         ? agencyPayload
         : [agencyPayload];
-      const agencyNormalized = records.filter(Boolean).map(normalizeOrganisation);
+      const agencyNormalized = records
+        .filter(Boolean)
+        .map(normalizeOrganisation);
       const agencyApplied = applyOrganisationState(
         agencyNormalized,
         setOrganisations,
@@ -209,7 +213,9 @@ function Organisations() {
         const records = Array.isArray(agencyPayload)
           ? agencyPayload
           : [agencyPayload];
-        const agencyNormalized = records.filter(Boolean).map(normalizeOrganisation);
+        const agencyNormalized = records
+          .filter(Boolean)
+          .map(normalizeOrganisation);
         const agencyApplied = applyOrganisationState(
           agencyNormalized,
           setOrganisations,
@@ -250,52 +256,38 @@ function Organisations() {
     };
   }, [fetchOrganisations]);
 
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        const res = await axiosInstance.get("/users?role=EMPLOYEE");
-        const incoming = Array.isArray(res?.data) ? res.data : [];
-        const normalized = incoming.map((item, index) => ({
-          _id: item?._id || `user-${index + 1}`,
-          name: item?.name || "User",
-          email: item?.email || "user@crm.com",
-          role: item?.role || "READ_ONLY",
-          status: typeof item?.status === "boolean" ? item.status : true,
-          reportTo: item?.reportToName || item?.reportTo?.name || "Manager",
-          reportToEmail:
-            item?.reportToEmail || item?.reportTo?.email || "manager@crm.com",
-          createdAt: item?.createdAt || new Date().toISOString(),
-        }));
-        setUsers(normalized);
-      } catch (error) {
-        console.error("Failed to fetch users:", error);
-        setUsers([
-          {
-            _id: "u-1",
-            name: "Aditi Sharma",
-            email: "aditi@travelpro.com",
-            role: "READ_ONLY",
-            status: true,
-            reportTo: "Bhavneet Kumar",
-            reportToEmail: "bhavneet@travelpro.com",
-            createdAt: "2026-03-24T00:00:00.000Z",
-          },
-          {
-            _id: "u-2",
-            name: "Raj Malhotra",
-            email: "raj@travelpro.com",
-            role: "MANAGER",
-            status: true,
-            reportTo: "Bhavneet Kumar",
-            reportToEmail: "bhavneet@travelpro.com",
-            createdAt: "2026-03-27T00:00:00.000Z",
-          },
-        ]);
-      }
-    }
+  const fetchUsersByOrganisation = useCallback(async (organisationId) => {
+    try {
+      const res = await axiosInstance.get(
+        `/users?organisationId=${organisationId}`,
+      );
 
-    fetchUsers();
+      const incoming = Array.isArray(res?.data) ? res.data : [];
+
+      const normalized = incoming.map((item, index) => ({
+        _id: item?._id || `user-${index + 1}`,
+        name: item?.name || "User",
+        email: item?.email || "user@crm.com",
+        role: item?.role || "READ_ONLY",
+        status: typeof item?.status === "boolean" ? item.status : true,
+        reportTo: item?.reportToName || item?.reportTo?.name || "Manager",
+        reportToEmail:
+          item?.reportToEmail || item?.reportTo?.email || "manager@crm.com",
+        createdAt: item?.createdAt || new Date().toISOString(),
+      }));
+
+      setUsers(normalized);
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      setUsers([]); // optional cleanup
+    }
   }, []);
+
+  useEffect(() => {
+    if (expandedOrgId) {
+      fetchUsersByOrganisation(expandedOrgId);
+    }
+  }, [expandedOrgId, fetchUsersByOrganisation]); // ✅ FIXED
 
   const dataToRender = organisations.length
     ? organisations
@@ -389,7 +381,7 @@ function Organisations() {
     setSelectedPlan(org.plan || "Trial");
     setSettingsForm({
       organizationName: org.organizationName || "",
-      organizationCode: org.organizationCode || "",
+      organizationCode: org.code || "N/A",
       city: org.city || "",
       maximumUsers: org.maximumUsers || "",
       organizationAddress: org.organizationAddress || "",
@@ -435,6 +427,8 @@ function Organisations() {
       reportToName: modalForm.reportTo.trim(),
       reportToEmail: modalForm.reportToEmail.trim(),
       status: modalForm.status,
+      organisationId: expandedOrgId,
+      orgRole: toApiRole(modalForm.role),
     };
     if (!payload.name || !payload.email) return;
 
@@ -461,26 +455,14 @@ function Organisations() {
           ),
         );
       } else {
-        let createdId = `temp-${Date.now()}`;
         try {
-          const response = await axiosInstance.post("/users", payload);
-          if (response?.data?._id) createdId = response.data._id;
+          await axiosInstance.post("/users", payload);
+          await fetchUsersByOrganisation(expandedOrgId);
+          setSuccessMessage("User created successfully");
+          setTimeout(() => setSuccessMessage(""), 3000);
         } catch (error) {
-          console.error("User create API failed, adding frontend user:", error);
+          console.error("User create API failed:", error);
         }
-        setUsers((prev) => [
-          {
-            _id: createdId,
-            name: payload.name,
-            email: payload.email,
-            role: payload.role,
-            status: payload.status,
-            reportTo: payload.reportToName || "-",
-            reportToEmail: payload.reportToEmail || "-",
-            createdAt: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
       }
       setShowUserModal(false);
     } catch (error) {
@@ -519,33 +501,22 @@ function Organisations() {
 
   async function handleSaveAgencySettings(event) {
     event.preventDefault();
-    const payload = {
-      organizationName: settingsForm.organizationName,
-      organizationCode: settingsForm.organizationCode,
-      maximumUsers: settingsForm.maximumUsers,
-      organizationAddress: settingsForm.organizationAddress,
-      city: settingsForm.city,
-      plan: selectedPlan,
-    };
 
     try {
-      await agencyService.updateAgency(payload);
-    } catch (error) {
-      console.error("Agency update failed:", error);
-    }
+      await axiosInstance.put(`/organisations/${expandedOrgId}`, {
+        name: settingsForm.organizationName,
+        city: settingsForm.city,
+        address: settingsForm.organizationAddress,
+        maxUsers: settingsForm.maximumUsers,
+      });
 
-    if (!expandedOrg) return;
-    setOrganisations((prev) =>
-      prev.map((org) =>
-        org._id === expandedOrg._id
-          ? {
-              ...org,
-              ...payload,
-              maximumUsers: Number(payload.maximumUsers || 0),
-            }
-          : org,
-      ),
-    );
+      setSuccessMessage("Organisation updated successfully");
+      setTimeout(() => setSuccessMessage(""), 3000);
+
+      window.dispatchEvent(new Event("refreshOrganisations"));
+    } catch (error) {
+      console.error("Update failed:", error);
+    }
   }
 
   async function handleDeleteOrganisation(orgId) {
@@ -564,7 +535,7 @@ function Organisations() {
           setSelectedPlan(remaining[0].plan || "Trial");
           setSettingsForm({
             organizationName: remaining[0].organizationName || "",
-            organizationCode: remaining[0].organizationCode || "",
+            organizationCode: remaining[0].code || "N/A",
             city: remaining[0].city || "",
             maximumUsers: remaining[0].maximumUsers || "",
             organizationAddress: remaining[0].organizationAddress || "",
@@ -983,107 +954,117 @@ function Organisations() {
                                 </div>
 
                                 {settingsTab === "basic" ? (
-                                  <form
-                                    onSubmit={handleSaveAgencySettings}
-                                    className="space-y-4"
-                                  >
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                      <label className="space-y-1.5">
-                                        <span className="text-sm text-slate-600">
-                                          Agency Name
-                                        </span>
-                                        <input
-                                          value={settingsForm.organizationName}
-                                          onChange={(event) =>
-                                            setSettingsForm((prev) => ({
-                                              ...prev,
-                                              organizationName:
-                                                event.target.value,
-                                            }))
-                                          }
-                                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
-                                        />
-                                      </label>
-                                      <label className="space-y-1.5">
-                                        <span className="text-sm text-slate-600">
-                                          Agency Code
-                                        </span>
-                                        <input
-                                          value={settingsForm.organizationCode}
-                                          onChange={(event) =>
-                                            setSettingsForm((prev) => ({
-                                              ...prev,
-                                              organizationCode:
-                                                event.target.value,
-                                            }))
-                                          }
-                                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
-                                        />
-                                      </label>
-                                      <label className="space-y-1.5">
-                                        <span className="text-sm text-slate-600">
-                                          City
-                                        </span>
-                                        <input
-                                          value={settingsForm.city}
-                                          onChange={(event) =>
-                                            setSettingsForm((prev) => ({
-                                              ...prev,
-                                              city: event.target.value,
-                                            }))
-                                          }
-                                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
-                                        />
-                                      </label>
-                                      <label className="space-y-1.5">
-                                        <span className="text-sm text-slate-600">
-                                          Maximum Users
-                                        </span>
-                                        <input
-                                          type="number"
-                                          value={settingsForm.maximumUsers}
-                                          onChange={(event) =>
-                                            setSettingsForm((prev) => ({
-                                              ...prev,
-                                              maximumUsers: event.target.value,
-                                            }))
-                                          }
-                                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
-                                        />
-                                      </label>
-                                      <label className="space-y-1.5 md:col-span-2">
-                                        <span className="text-sm text-slate-600">
-                                          Organisation Address
-                                        </span>
-                                        <input
-                                          value={
-                                            settingsForm.organizationAddress
-                                          }
-                                          onChange={(event) =>
-                                            setSettingsForm((prev) => ({
-                                              ...prev,
-                                              organizationAddress:
-                                                event.target.value,
-                                            }))
-                                          }
-                                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
-                                        />
-                                      </label>
-                                    </div>
-                                    <button
-                                      type="submit"
-                                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                                  <>
+                                    {successMessage && (
+                                      <div className="rounded-lg bg-green-100 px-4 py-2 text-sm font-medium text-green-700">
+                                        {successMessage}
+                                      </div>
+                                    )}
+
+                                    <form
+                                      onSubmit={handleSaveAgencySettings}
+                                      className="space-y-4"
                                     >
-                                      Save Changes
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteOrganisation(org._id)}
-                                      className="ml-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
-                                    >
-                                      Delete Organisation
-                                    </button>
-                                  </form>
+                                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <label className="space-y-1.5">
+                                          <span className="text-sm text-slate-600">
+                                            Agency Name
+                                          </span>
+                                          <input
+                                            value={
+                                              settingsForm.organizationName
+                                            }
+                                            onChange={(event) =>
+                                              setSettingsForm((prev) => ({
+                                                ...prev,
+                                                organizationName:
+                                                  event.target.value,
+                                              }))
+                                            }
+                                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+                                          />
+                                        </label>
+                                        <label className="space-y-1.5">
+                                          <span className="text-sm text-slate-600">
+                                            Agency Code
+                                          </span>
+                                          <input
+                                            value={
+                                              settingsForm.organizationCode ||
+                                              "N/A"
+                                            }
+                                            disabled
+                                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-500 outline-none"
+                                          />
+                                        </label>
+                                        <label className="space-y-1.5">
+                                          <span className="text-sm text-slate-600">
+                                            City
+                                          </span>
+                                          <input
+                                            value={settingsForm.city}
+                                            onChange={(event) =>
+                                              setSettingsForm((prev) => ({
+                                                ...prev,
+                                                city: event.target.value,
+                                              }))
+                                            }
+                                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+                                          />
+                                        </label>
+                                        <label className="space-y-1.5">
+                                          <span className="text-sm text-slate-600">
+                                            Maximum Users
+                                          </span>
+                                          <input
+                                            type="number"
+                                            value={settingsForm.maximumUsers}
+                                            onChange={(event) =>
+                                              setSettingsForm((prev) => ({
+                                                ...prev,
+                                                maximumUsers:
+                                                  event.target.value,
+                                              }))
+                                            }
+                                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+                                          />
+                                        </label>
+                                        <label className="space-y-1.5 md:col-span-2">
+                                          <span className="text-sm text-slate-600">
+                                            Organisation Address
+                                          </span>
+                                          <input
+                                            value={
+                                              settingsForm.organizationAddress
+                                            }
+                                            onChange={(event) =>
+                                              setSettingsForm((prev) => ({
+                                                ...prev,
+                                                organizationAddress:
+                                                  event.target.value,
+                                              }))
+                                            }
+                                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+                                          />
+                                        </label>
+                                      </div>
+                                      <button
+                                        type="submit"
+                                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                                      >
+                                        Save Changes
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleDeleteOrganisation(org._id)
+                                        }
+                                        className="ml-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
+                                      >
+                                        Delete Organisation
+                                      </button>
+                                    </form>
+                                  </>
                                 ) : null}
 
                                 {settingsTab === "plan" ? (
@@ -1134,6 +1115,22 @@ function Organisations() {
 
                                 {settingsTab === "users" ? (
                                   <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                      {successMessage ? (
+                                        <div className="rounded-lg bg-green-100 px-4 py-2 text-sm font-medium text-green-700">
+                                          {successMessage}
+                                        </div>
+                                      ) : (
+                                        <div />
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={openAddUserModal}
+                                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                                      >
+                                        Add User
+                                      </button>
+                                    </div>
                                     <div className="overflow-x-auto rounded-xl border border-slate-200">
                                       <table className="min-w-full text-sm">
                                         <thead>
