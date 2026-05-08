@@ -181,16 +181,13 @@ function SystemAdminUserModal({ isOpen, onClose, onSubmit, isLoading }) {
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">
                   Role *
                 </span>
-                <select
-  name="role"
-  value={form.role}
-  onChange={handleChange}
-  className="mt-1.5 h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
->
-                  <option value="ADMIN">Admin</option>
-                  <option value="MANAGE">Manage</option>
-                  <option value="READ_ONLY">Read Only</option>
-                </select>
+                <input
+                  name="role"
+                  value="Admin"
+                  readOnly
+                  disabled
+                  className="mt-1.5 h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
+                />
               </label>
             </div>
           </div>

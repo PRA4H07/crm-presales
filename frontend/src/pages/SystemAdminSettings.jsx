@@ -3,7 +3,13 @@ import { ChevronDown, Pencil, Search, Trash2, Upload } from "lucide-react";
 import axiosInstance from "../api/axiosInstance";
 import SystemAdminUserModal from "./SystemAdminUserModal";
 
-const ROLE_OPTIONS = ["All Roles", "Admin", "Manage", "Read-Only"];
+const ROLE_OPTIONS = ["Admin"];
+const SMTP_STORAGE_KEY = "smtpConfig";
+
+function isValidEmail(value) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(String(value || "").trim());
+}
 
 function mapRoleLabel(role) {
   if (role === "ADMIN" || role === "SYSTEM_ADMIN") return "Admin";
@@ -39,7 +45,7 @@ function SystemAdminSettings() {
   });
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRole, setSelectedRole] = useState("All Roles");
+  const [selectedRole, setSelectedRole] = useState("Admin");
   const [saveMessage, setSaveMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,8 +55,38 @@ function SystemAdminSettings() {
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", email: "", orgRole: "ADMIN" });
   const [organisations, setOrganisations] = useState([]);
+  const [smtpConfig, setSmtpConfig] = useState({
+    host: "",
+    port: "",
+    email: "",
+    password: "",
+    secure: false,
+    senderName: "",
+    replyEmail: "",
+    notificationsEnabled: false,
+  });
+  const [testEmail, setTestEmail] = useState("");
+  const [emailErrors, setEmailErrors] = useState({
+    email: "",
+    replyEmail: "",
+    testEmail: "",
+  });
+  const [emailStatusMessage, setEmailStatusMessage] = useState("");
 
   useEffect(() => {
+    try {
+      const storedSmtpConfig = window.localStorage.getItem(SMTP_STORAGE_KEY);
+      if (storedSmtpConfig) {
+        const parsed = JSON.parse(storedSmtpConfig);
+        setSmtpConfig((prev) => ({
+          ...prev,
+          ...parsed,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load SMTP config:", error);
+    }
+
     async function loadPage() {
       try {
         const [agencyRes, orgRes, usersRes] = await Promise.allSettled([
@@ -85,9 +121,11 @@ function SystemAdminSettings() {
   const filteredUsers = useMemo(() => {
     const searchValue = searchTerm.trim().toLowerCase();
     return users.filter((user) => {
+      const roleValue = String(user.orgRole || user.role || "").toUpperCase();
+      const isAdminRole = roleValue === "ADMIN" || roleValue === "SYSTEM_ADMIN";
+      if (!isAdminRole) return false;
       const roleLabel = mapRoleLabel(user.orgRole || user.role);
-      const matchesRole =
-        selectedRole === "All Roles" ? true : roleLabel === selectedRole;
+      const matchesRole = roleLabel === selectedRole;
       const matchesSearch = searchValue
         ? `${user.name} ${user.email}`.toLowerCase().includes(searchValue)
         : true;
@@ -121,6 +159,57 @@ function SystemAdminSettings() {
       console.error("Failed to save settings:", error);
       setSaveMessage("Failed to save settings.");
     }
+  }
+
+  function handleSmtpFieldChange(event) {
+    const { name, value, type, checked } = event.target;
+    setSmtpConfig((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    setEmailStatusMessage("");
+    if (name === "email" || name === "replyEmail") {
+      setEmailErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  }
+
+  function handleTestEmailSend() {
+    const trimmed = testEmail.trim();
+    if (!isValidEmail(trimmed)) {
+      setEmailErrors((prev) => ({
+        ...prev,
+        testEmail: "Invalid email format",
+      }));
+      setEmailStatusMessage("");
+      return;
+    }
+    setEmailErrors((prev) => ({ ...prev, testEmail: "" }));
+    setEmailStatusMessage("Test mail sent successfully.");
+  }
+
+  function handleSaveEmailConfig() {
+    const nextErrors = {
+      email: "",
+      replyEmail: "",
+      testEmail: emailErrors.testEmail,
+    };
+
+    if (!isValidEmail(smtpConfig.email)) {
+      nextErrors.email = "Invalid email format";
+    }
+    if (!isValidEmail(smtpConfig.replyEmail)) {
+      nextErrors.replyEmail = "Invalid email format";
+    }
+
+    setEmailErrors(nextErrors);
+
+    if (nextErrors.email || nextErrors.replyEmail) {
+      setEmailStatusMessage("");
+      return;
+    }
+
+    window.localStorage.setItem(SMTP_STORAGE_KEY, JSON.stringify(smtpConfig));
+    setEmailStatusMessage("Configuration saved successfully.");
   }
 
   function toggleStatus(userId) {
@@ -266,6 +355,17 @@ function SystemAdminSettings() {
         >
           Users
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("email")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium ${
+            activeTab === "email"
+              ? "border border-slate-200 bg-white text-slate-900 shadow-sm"
+              : "text-slate-600"
+          }`}
+        >
+          Email Config
+        </button>
       </div>
 
       {activeTab === "basic" ? (
@@ -405,7 +505,7 @@ function SystemAdminSettings() {
             ) : null}
           </div>
         </form>
-      ) : (
+      ) : activeTab === "users" ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
           <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -472,8 +572,8 @@ function SystemAdminSettings() {
                 </tr>
               </thead>
               <tbody>
-                {users.length > 0 ? (
-                  users.map((user) => (
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
                     <tr key={user._id}>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
@@ -568,6 +668,202 @@ function SystemAdminSettings() {
             </table>
           </div>
         </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
+            <h3 className="text-lg font-semibold text-slate-900">SMTP Settings</h3>
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Host
+                </span>
+                <input
+                  name="host"
+                  value={smtpConfig.host}
+                  onChange={handleSmtpFieldChange}
+                  className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Email
+                </span>
+                <input
+                  name="email"
+                  value={smtpConfig.email}
+                  onChange={handleSmtpFieldChange}
+                  className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
+                />
+                {emailErrors.email ? (
+                  <p className="mt-1 text-xs text-rose-600">{emailErrors.email}</p>
+                ) : null}
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Port
+                </span>
+                <input
+                  type="number"
+                  name="port"
+                  value={smtpConfig.port}
+                  onChange={handleSmtpFieldChange}
+                  className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
+                />
+              </label>
+              <div className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Secure Connection
+                </span>
+                <label className="inline-flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSmtpConfig((prev) => ({ ...prev, secure: !prev.secure }))
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                      smtpConfig.secure ? "bg-blue-600" : "bg-slate-300"
+                    }`}
+                    aria-label="toggle secure connection"
+                  >
+                    <span
+                      className={`h-4 w-4 transform rounded-full bg-white transition ${
+                        smtpConfig.secure ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <span className="text-sm text-slate-600">
+                    {smtpConfig.secure ? "ON" : "OFF"}
+                  </span>
+                </label>
+              </div>
+              <label className="block md:col-span-1">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Password
+                </span>
+                <input
+                  type="password"
+                  name="password"
+                  value={smtpConfig.password}
+                  onChange={handleSmtpFieldChange}
+                  className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
+              <h3 className="text-lg font-semibold text-slate-900">Email Preferences</h3>
+              <div className="mt-4 space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Sender Name
+                  </span>
+                  <input
+                    name="senderName"
+                    value={smtpConfig.senderName}
+                    onChange={handleSmtpFieldChange}
+                    className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Reply Email
+                  </span>
+                  <input
+                    name="replyEmail"
+                    value={smtpConfig.replyEmail}
+                    onChange={handleSmtpFieldChange}
+                    className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
+                  />
+                  {emailErrors.replyEmail ? (
+                    <p className="mt-1 text-xs text-rose-600">
+                      {emailErrors.replyEmail}
+                    </p>
+                  ) : null}
+                </label>
+                <div>
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Enable System Notifications
+                  </span>
+                  <label className="inline-flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSmtpConfig((prev) => ({
+                          ...prev,
+                          notificationsEnabled: !prev.notificationsEnabled,
+                        }))
+                      }
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                        smtpConfig.notificationsEnabled
+                          ? "bg-blue-600"
+                          : "bg-slate-300"
+                      }`}
+                      aria-label="toggle system notifications"
+                    >
+                      <span
+                        className={`h-4 w-4 transform rounded-full bg-white transition ${
+                          smtpConfig.notificationsEnabled
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                    <span className="text-sm text-slate-600">
+                      {smtpConfig.notificationsEnabled ? "ON" : "OFF"}
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
+              <h3 className="text-lg font-semibold text-slate-900">Test Email</h3>
+              <div className="mt-4 space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Input Email
+                  </span>
+                  <input
+                    value={testEmail}
+                    onChange={(event) => {
+                      setTestEmail(event.target.value);
+                      setEmailErrors((prev) => ({ ...prev, testEmail: "" }));
+                      setEmailStatusMessage("");
+                    }}
+                    className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
+                  />
+                  {emailErrors.testEmail ? (
+                    <p className="mt-1 text-xs text-rose-600">
+                      {emailErrors.testEmail}
+                    </p>
+                  ) : null}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleTestEmailSend}
+                  className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+                >
+                  Send Test Mail
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
+            <button
+              type="button"
+              onClick={handleSaveEmailConfig}
+              className="w-full rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+            >
+              Save Configuration
+            </button>
+            {emailStatusMessage ? (
+              <p className="mt-2 text-sm text-green-700">{emailStatusMessage}</p>
+            ) : null}
+          </div>
+        </div>
       )}
 
       <SystemAdminUserModal
@@ -612,11 +908,10 @@ function SystemAdminSettings() {
                   name="orgRole"
                   value={editForm.orgRole}
                   onChange={handleEditFormChange}
+                  disabled
                   className="mt-1.5 h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-400"
                 >
                   <option value="ADMIN">Admin</option>
-                  <option value="MANAGE">Manage</option>
-                  <option value="READ_ONLY">Read-Only</option>
                 </select>
               </label>
               <div className="flex justify-end gap-2 pt-1">

@@ -22,6 +22,7 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import SystemAdminSettings from "./pages/SystemAdminSettings";
 import TasksPage from "./pages/TasksPage";
+import AdminTasksPage from "./pages/AdminTasksPage";
 import ChangePassword from "./pages/ChangePassword";
 
 function ProtectedRoute() {
@@ -97,7 +98,7 @@ function App() {
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="profile" element={<ProfilePage />} />
-            <Route path="tasks" element={<TasksPage />} />
+            <Route path="tasks" element={<AdminTasksPage />} />
           </Route>
         ) : null}
 

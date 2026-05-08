@@ -29,8 +29,77 @@ const mockOrganisations = [
   },
 ];
 
-const roleOptions = ["System Users Read-Only", "Admin", "Manager"];
+const roleOptions = ["Admin"];
 const planOptions = ["Trial", "Basic", "Premium", "Enterprise"];
+const planFeatures = [
+  { key: "leads", label: "Leads" },
+  { key: "clients", label: "Clients" },
+  { key: "insights", label: "Insights" },
+  { key: "users", label: "Users" },
+  { key: "email", label: "Email Integration" },
+];
+
+function getPlanDefaults(type) {
+  const normalizedType = String(type || "TRIAL").toUpperCase();
+
+  if (normalizedType === "BASIC" || normalizedType === "ENTERPRISE") {
+    return {
+      features: {
+        leads: true,
+        clients: true,
+        insights: true,
+        users: true,
+        email: true,
+      },
+      additionalFeatures: {
+        emailAutomation: normalizedType === "ENTERPRISE",
+        apiAccess: normalizedType === "ENTERPRISE",
+        advancedReports: normalizedType === "ENTERPRISE",
+      },
+    };
+  }
+
+  return {
+    features: {
+      leads: false,
+      clients: false,
+      insights: false,
+      users: false,
+      email: false,
+    },
+    additionalFeatures: {
+      emailAutomation: false,
+      apiAccess: false,
+      advancedReports: false,
+    },
+  };
+}
+
+function readStoredPlanConfig() {
+  try {
+    const raw = window.localStorage.getItem("planConfig");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      type: String(parsed.type || "TRIAL").toUpperCase(),
+      features: {
+        leads: Boolean(parsed.features?.leads),
+        clients: Boolean(parsed.features?.clients),
+        insights: Boolean(parsed.features?.insights),
+        users: Boolean(parsed.features?.users),
+        email: Boolean(parsed.features?.email),
+      },
+      additionalFeatures: {
+        emailAutomation: Boolean(parsed.additionalFeatures?.emailAutomation),
+        apiAccess: Boolean(parsed.additionalFeatures?.apiAccess),
+        advancedReports: Boolean(parsed.additionalFeatures?.advancedReports),
+      },
+    };
+  } catch {
+    return null;
+  }
+}
 function getStoredOrganisation() {
   try {
     const raw = window.localStorage.getItem("org");
@@ -139,6 +208,15 @@ function Organisations() {
   const [editingUserId, setEditingUserId] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("Trial");
+  const [openFeaturesPlan, setOpenFeaturesPlan] = useState("TRIAL");
+  const [planConfig, setPlanConfig] = useState(() => {
+    return (
+      readStoredPlanConfig() || {
+        type: "TRIAL",
+        ...getPlanDefaults("TRIAL"),
+      }
+    );
+  });
   const [backendConfigs, setBackendConfigs] = useState(() => {
     try {
       const raw = window.localStorage.getItem("org.backendConfigs");
@@ -150,7 +228,7 @@ function Organisations() {
   const [modalForm, setModalForm] = useState({
     name: "",
     email: "",
-    role: "System Users Read-Only",
+    role: "Admin",
     reportTo: "",
     reportToEmail: "",
     status: true,
@@ -162,6 +240,19 @@ function Organisations() {
     maximumUsers: "",
     organizationAddress: "",
   });
+
+  useEffect(() => {
+    window.localStorage.setItem("planConfig", JSON.stringify(planConfig));
+  }, [planConfig]);
+
+  useEffect(() => {
+    const normalizedType = String(selectedPlan || "Trial").toUpperCase();
+    setPlanConfig({
+      type: normalizedType,
+      ...getPlanDefaults(normalizedType),
+    });
+    setOpenFeaturesPlan(normalizedType);
+  }, [selectedPlan]);
 
   const fetchOrganisations = useCallback(async () => {
     try {
@@ -327,6 +418,9 @@ function Organisations() {
   const filteredUsers = useMemo(() => {
     const term = userSearch.trim().toLowerCase();
     return users.filter((item) => {
+      const roleValue = String(item.role || "").toUpperCase();
+      const isAdminRole = roleValue === "ADMIN" || roleValue === "SYSTEM_ADMIN";
+      if (!isAdminRole) return false;
       const roleLabel = getRoleLabel(item.role);
       const rolePass =
         userRoleFilter === "All Roles" ? true : roleLabel === userRoleFilter;
@@ -396,7 +490,7 @@ function Organisations() {
     setModalForm({
       name: "",
       email: "",
-      role: "System Users Read-Only",
+      role: "Admin",
       reportTo: "",
       reportToEmail: "",
       status: true,
@@ -410,7 +504,7 @@ function Organisations() {
     setModalForm({
       name: user.name || "",
       email: user.email || "",
-      role: getRoleLabel(user.role),
+      role: "Admin",
       reportTo: user.reportTo || "",
       reportToEmail: user.reportToEmail || "",
       status: Boolean(user.status),
@@ -751,7 +845,7 @@ function Organisations() {
                                       : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                                   }`}
                                 >
-                                  Backend
+                                  Database
                                 </button>
                               </div>
                             </div>
@@ -1068,48 +1162,367 @@ function Organisations() {
                                 ) : null}
 
                                 {settingsTab === "plan" ? (
-                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                    {planOptions.map((plan) => {
-                                      const isCurrent = selectedPlan === plan;
-                                      return (
-                                        <article
-                                          key={plan}
-                                          className={`rounded-xl border p-4 ${
-                                            isCurrent
-                                              ? "border-blue-300 bg-blue-50"
-                                              : "border-slate-200 bg-white"
-                                          }`}
-                                        >
-                                          <p className="text-sm font-semibold text-slate-900">
-                                            {plan}
-                                          </p>
-                                          <p className="mt-1 text-xs text-slate-500">
-                                            {plan} plan for agency operations
-                                          </p>
-                                          {isCurrent ? (
-                                            <span className="mt-2 inline-flex rounded-full border border-blue-200 bg-white px-2 py-1 text-xs font-medium text-blue-700">
-                                              Current Plan
-                                            </span>
-                                          ) : null}
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setSelectedPlan(plan);
-                                              setOrganisations((prev) =>
-                                                prev.map((item) =>
-                                                  item._id === org._id
-                                                    ? { ...item, plan }
-                                                    : item,
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                      {planOptions.map((plan) => {
+                                        const isCurrent = selectedPlan === plan;
+                                        const planType = String(plan).toUpperCase();
+                                        const isTrial = planType === "TRIAL";
+                                        const isBasic = planType === "BASIC";
+                                        const isPremium = planType === "PREMIUM";
+                                        const isEnterprise = planType === "ENTERPRISE";
+                                        const isReadOnly = isBasic || isEnterprise;
+                                        const fallbackConfig = {
+                                          type: planType,
+                                          ...getPlanDefaults(planType),
+                                        };
+                                        const cardPlanConfig =
+                                          planConfig.type === planType
+                                            ? planConfig
+                                            : fallbackConfig;
+
+                                        let buttonLabel = "Upgrade";
+                                        if (isTrial) buttonLabel = "Manage Trial";
+                                        if (isBasic) buttonLabel = "Upgrade";
+
+                                        const additionalFeatureState =
+                                          cardPlanConfig.additionalFeatures || {};
+                                        const apiChecked = Boolean(
+                                          additionalFeatureState.api ??
+                                            additionalFeatureState.apiAccess,
+                                        );
+                                        const reportingChecked = Boolean(
+                                          additionalFeatureState.reporting ??
+                                            additionalFeatureState.advancedReports,
+                                        );
+                                        const supportChecked = Boolean(
+                                          additionalFeatureState.support ??
+                                            additionalFeatureState.emailAutomation,
+                                        );
+                                        const movedToCoreFeatures = [];
+                                        if (apiChecked) {
+                                          movedToCoreFeatures.push({
+                                            key: "api",
+                                            label: "Full API Access",
+                                          });
+                                        }
+                                        if (reportingChecked) {
+                                          movedToCoreFeatures.push({
+                                            key: "reporting",
+                                            label: "Custom Reporting",
+                                          });
+                                        }
+                                        if (supportChecked) {
+                                          movedToCoreFeatures.push({
+                                            key: "support",
+                                            label: "Priority Support",
+                                          });
+                                        }
+
+                                        function getFeatureCheckedValue(featureKey) {
+                                          if (featureKey === "api") return apiChecked;
+                                          if (featureKey === "reporting")
+                                            return reportingChecked;
+                                          if (featureKey === "support") return supportChecked;
+                                          return cardPlanConfig.features[featureKey];
+                                        }
+
+                                        function applyPlanSelection() {
+                                          const nextType = planType;
+                                          const nextConfig = {
+                                            type: nextType,
+                                            ...getPlanDefaults(nextType),
+                                          };
+                                          setSelectedPlan(plan);
+                                          setPlanConfig(nextConfig);
+                                          setOpenFeaturesPlan(nextType);
+                                          window.localStorage.setItem(
+                                            "planConfig",
+                                            JSON.stringify({
+                                              selectedPlan: String(plan).toLowerCase(),
+                                              selectedFeatures: {
+                                                ...nextConfig.features,
+                                                api: Boolean(
+                                                  nextConfig.additionalFeatures?.api ??
+                                                    nextConfig.additionalFeatures?.apiAccess,
                                                 ),
-                                              );
-                                            }}
-                                            className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                                                reporting: Boolean(
+                                                  nextConfig.additionalFeatures?.reporting ??
+                                                    nextConfig.additionalFeatures?.advancedReports,
+                                                ),
+                                                support: Boolean(
+                                                  nextConfig.additionalFeatures?.support ??
+                                                    nextConfig.additionalFeatures?.emailAutomation,
+                                                ),
+                                              },
+                                            }),
+                                          );
+                                          setOrganisations((prev) =>
+                                            prev.map((item) =>
+                                              item._id === org._id
+                                                ? { ...item, plan }
+                                                : item,
+                                            ),
+                                          );
+                                        }
+
+                                        return (
+                                          <article
+                                            key={plan}
+                                            onClick={applyPlanSelection}
+                                            className={`rounded-xl border p-4 ${
+                                              isCurrent
+                                                ? "border-blue-300 bg-blue-50"
+                                                : "border-slate-200 bg-white"
+                                            }`}
                                           >
-                                            Upgrade
-                                          </button>
-                                        </article>
-                                      );
-                                    })}
+                                            <div>
+                                              {isBasic && isCurrent ? (
+                                                <p className="text-xs font-semibold text-blue-700">
+                                                  Basic - Your Current Plan
+                                                </p>
+                                              ) : null}
+                                              <p className="text-sm font-semibold text-slate-900">
+                                                {plan}
+                                              </p>
+                                              <p className="mt-1 text-xs text-slate-500">
+                                                {plan} plan for agency operations
+                                              </p>
+                                              {isTrial ? (
+                                                <div className="mt-3">
+                                                  <div className="h-2 w-full rounded-full bg-slate-200">
+                                                    <div className="h-2 w-2/3 rounded-full bg-blue-600" />
+                                                  </div>
+                                                  <p className="mt-1 text-xs text-slate-500">
+                                                    Your 14-day trial ends in 5 days
+                                                  </p>
+                                                </div>
+                                              ) : null}
+                                            </div>
+
+                                            <div className="my-4 border-t border-slate-200" />
+
+                                            <div className="rounded-lg border border-slate-200 bg-white p-3">
+                                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                Core Features
+                                              </p>
+
+                                              {isTrial ? (
+                                                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                                                  <li>Leads</li>
+                                                  <li>Clients</li>
+                                                  <li>Insights</li>
+                                                  <li>Users</li>
+                                                  <li>Email Integration</li>
+                                                </ul>
+                                              ) : (
+                                                <div className="mt-2 grid grid-cols-1 gap-2">
+                                                  {[...planFeatures, ...movedToCoreFeatures].map((feature) => (
+                                                    <label
+                                                      key={feature.key}
+                                                      className="flex items-center justify-between gap-2 text-sm text-slate-700"
+                                                    >
+                                                      {feature.label}
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={getFeatureCheckedValue(feature.key)}
+                                                        disabled={isReadOnly}
+                                                        onClick={(event) =>
+                                                          event.stopPropagation()
+                                                        }
+                                                        onChange={(event) => {
+                                                          event.stopPropagation();
+                                                          setPlanConfig((prev) => {
+                                                            const next = {
+                                                              ...prev,
+                                                              features:
+                                                                feature.key === "api" ||
+                                                                feature.key === "reporting" ||
+                                                                feature.key === "support"
+                                                                  ? prev.features
+                                                                  : {
+                                                                      ...prev.features,
+                                                                      [feature.key]:
+                                                                        !prev.features[
+                                                                          feature.key
+                                                                        ],
+                                                                    },
+                                                            };
+                                                            window.localStorage.setItem(
+                                                              "planConfig",
+                                                              JSON.stringify({
+                                                                selectedPlan: String(selectedPlan).toLowerCase(),
+                                                                selectedFeatures: {
+                                                                  ...next.features,
+                                                                  api: Boolean(
+                                                                    next.additionalFeatures?.api ??
+                                                                      next.additionalFeatures?.apiAccess,
+                                                                  ),
+                                                                  reporting: Boolean(
+                                                                    next.additionalFeatures?.reporting ??
+                                                                      next.additionalFeatures?.advancedReports,
+                                                                  ),
+                                                                  support: Boolean(
+                                                                    next.additionalFeatures?.support ??
+                                                                      next.additionalFeatures?.emailAutomation,
+                                                                  ),
+                                                                },
+                                                              }),
+                                                            );
+                                                            return next;
+                                                          });
+                                                        }}
+                                                        className="h-4 w-4 rounded border-slate-300"
+                                                      />
+                                                    </label>
+                                                  ))}
+                                                </div>
+                                              )}
+
+                                              {(isPremium || isEnterprise || isBasic) && (
+                                                <div className="mt-4">
+                                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                    Additional Features
+                                                  </p>
+                                                  <div className="mt-2 grid grid-cols-1 gap-2">
+                                                    {!apiChecked || !isPremium ? (
+                                                    <label className="flex items-center justify-between gap-2 text-sm text-slate-700">
+                                                      Full API Access
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={apiChecked}
+                                                        disabled={isEnterprise || isBasic}
+                                                        onClick={(event) =>
+                                                          event.stopPropagation()
+                                                        }
+                                                        onChange={(event) => {
+                                                          event.stopPropagation();
+                                                          setPlanConfig((prev) => {
+                                                            const next = {
+                                                              ...prev,
+                                                              additionalFeatures: {
+                                                                ...prev.additionalFeatures,
+                                                                api: !apiChecked,
+                                                              },
+                                                            };
+                                                            window.localStorage.setItem(
+                                                              "planConfig",
+                                                              JSON.stringify({
+                                                                selectedPlan: String(selectedPlan).toLowerCase(),
+                                                                selectedFeatures: {
+                                                                  ...next.features,
+                                                                  api: Boolean(next.additionalFeatures?.api),
+                                                                  reporting: Boolean(next.additionalFeatures?.reporting),
+                                                                  support: Boolean(next.additionalFeatures?.support),
+                                                                },
+                                                              }),
+                                                            );
+                                                            return next;
+                                                          });
+                                                        }}
+                                                        className="h-4 w-4 rounded border-slate-300"
+                                                      />
+                                                    </label>
+                                                    ) : null}
+                                                    {!reportingChecked || !isPremium ? (
+                                                    <label className="flex items-center justify-between gap-2 text-sm text-slate-700">
+                                                      Custom Reporting
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={reportingChecked}
+                                                        disabled={isEnterprise || isBasic}
+                                                        onClick={(event) =>
+                                                          event.stopPropagation()
+                                                        }
+                                                        onChange={(event) => {
+                                                          event.stopPropagation();
+                                                          setPlanConfig((prev) => {
+                                                            const next = {
+                                                              ...prev,
+                                                              additionalFeatures: {
+                                                                ...prev.additionalFeatures,
+                                                                reporting: !reportingChecked,
+                                                              },
+                                                            };
+                                                            window.localStorage.setItem(
+                                                              "planConfig",
+                                                              JSON.stringify({
+                                                                selectedPlan: String(selectedPlan).toLowerCase(),
+                                                                selectedFeatures: {
+                                                                  ...next.features,
+                                                                  api: Boolean(next.additionalFeatures?.api),
+                                                                  reporting: Boolean(next.additionalFeatures?.reporting),
+                                                                  support: Boolean(next.additionalFeatures?.support),
+                                                                },
+                                                              }),
+                                                            );
+                                                            return next;
+                                                          });
+                                                        }}
+                                                        className="h-4 w-4 rounded border-slate-300"
+                                                      />
+                                                    </label>
+                                                    ) : null}
+                                                    {!supportChecked || !isPremium ? (
+                                                    <label className="flex items-center justify-between gap-2 text-sm text-slate-700">
+                                                      Priority Support
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={supportChecked}
+                                                        disabled={isEnterprise || isBasic}
+                                                        onClick={(event) =>
+                                                          event.stopPropagation()
+                                                        }
+                                                        onChange={(event) => {
+                                                          event.stopPropagation();
+                                                          setPlanConfig((prev) => {
+                                                            const next = {
+                                                              ...prev,
+                                                              additionalFeatures: {
+                                                                ...prev.additionalFeatures,
+                                                                support: !supportChecked,
+                                                              },
+                                                            };
+                                                            window.localStorage.setItem(
+                                                              "planConfig",
+                                                              JSON.stringify({
+                                                                selectedPlan: String(selectedPlan).toLowerCase(),
+                                                                selectedFeatures: {
+                                                                  ...next.features,
+                                                                  api: Boolean(next.additionalFeatures?.api),
+                                                                  reporting: Boolean(next.additionalFeatures?.reporting),
+                                                                  support: Boolean(next.additionalFeatures?.support),
+                                                                },
+                                                              }),
+                                                            );
+                                                            return next;
+                                                          });
+                                                        }}
+                                                        className="h-4 w-4 rounded border-slate-300"
+                                                      />
+                                                    </label>
+                                                    ) : null}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            <div className="mt-4 flex justify-center">
+                                              <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                  event.stopPropagation();
+                                                  applyPlanSelection();
+                                                }}
+                                                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                                              >
+                                                {buttonLabel}
+                                              </button>
+                                            </div>
+                                          </article>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
                                 ) : null}
 
@@ -1153,8 +1566,8 @@ function Organisations() {
                                           </tr>
                                         </thead>
                                         <tbody>
-                                          {users.length ? (
-                                            users.map((item) => {
+                                          {filteredUsers.length ? (
+                                            filteredUsers.map((item) => {
                                               const roleLabel = getRoleLabel(
                                                 item.role,
                                               );
@@ -1244,7 +1657,7 @@ function Organisations() {
                               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                                 <div>
                                   <h3 className="text-lg font-semibold text-slate-900">
-                                    Backend Configuration
+                                    Database Configuration
                                   </h3>
                                   <p className="text-sm text-slate-500">
                                     Manage database connection for this
@@ -1528,20 +1941,12 @@ function Organisations() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="text-sm text-slate-600">Role</label>
-                  <select
-                    value={modalForm.role}
-                    onChange={(event) =>
-                      setModalForm((prev) => ({
-                        ...prev,
-                        role: event.target.value,
-                      }))
-                    }
+                  <input
+                    value="Admin"
+                    readOnly
+                    disabled
                     className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
-                  >
-                    {roleOptions.map((role) => (
-                      <option key={role}>{role}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div>

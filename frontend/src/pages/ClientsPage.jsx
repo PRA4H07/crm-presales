@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { BarChart3, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { clientService } from "../services/clientService";
 import { formatDateTime } from "../utils/formatters";
@@ -331,28 +332,34 @@ function ClientsPage() {
                         : "—"}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex min-h-[2.25rem] flex-wrap justify-center gap-2">
+                      <div className="flex min-h-[2.25rem] flex-nowrap items-center justify-center gap-1.5">
                         <Link
                           to={`/clients/${client._id}`}
-                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                          aria-label="View client insights"
+                          title="View"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100"
                         >
-                          View
+                          <BarChart3 size={14} />
                         </Link>
                         {canManageClients ? (
                           <>
                             <button
                               type="button"
                               onClick={() => openEditModal(client)}
-                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                              aria-label="Edit client"
+                              title="Edit"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100"
                             >
-                              Edit
+                              <Pencil size={14} />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDelete(client._id)}
-                              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                              aria-label="Delete client"
+                              title="Delete"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
                             >
-                              Delete
+                              <Trash2 size={14} />
                             </button>
                           </>
                         ) : null}

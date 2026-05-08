@@ -4,6 +4,7 @@ const adminMenu = [
   { name: "Dashboard", path: "/dashboard", icon: "dashboard" },
   { name: "Leads", path: "/leads", icon: "leads" },
   { name: "Clients", path: "/clients", icon: "clients" },
+  { name: "Tasks", path: "/tasks", icon: "tasks" },
   { name: "Notifications", path: "/notifications", icon: "notifications" },
   { name: "Settings", path: "/settings", icon: "settings" },
 ];
@@ -34,6 +35,19 @@ function SidebarIcon({ icon }) {
       <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
         <path d="M12 4.5C9.4 4.5 7.3 6.6 7.3 9.2V11.4C7.3 12.2 7 13 6.4 13.6L5.5 14.5H18.5L17.6 13.6C17 13 16.7 12.2 16.7 11.4V9.2C16.7 6.6 14.6 4.5 12 4.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
         <path d="M10 17.5C10.4 18.4 11.1 19 12 19C12.9 19 13.6 18.4 14 17.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (icon === "tasks") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+        <rect x="4" y="5" width="3" height="3" rx="0.8" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M10 6.5H20" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <rect x="4" y="10.5" width="3" height="3" rx="0.8" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M10 12H20" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <rect x="4" y="16" width="3" height="3" rx="0.8" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M10 17.5H20" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
       </svg>
     );
   }
